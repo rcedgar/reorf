@@ -1,11 +1,6 @@
 #include "myutils.h"
-#include "alpha.h"
-#include "fastaseqsource.h"
-#include "objmgr.h"
 #include "seqinfo.h"
 #include "translator.h"
-
-void SeqToFasta(FILE *f, const char *Seq, unsigned L, const char *Label);
 
 uint GetPhase(int Endless_Plus, int Endless_Minus)
 	{
@@ -29,30 +24,90 @@ uint GetPhase(int Endless_Plus, int Endless_Minus)
 	return 0;
 	}
 
-static void GetFevStr(const SeqInfo *SIQ, string &Str)
+static bool FrameSelected(int Frame, const vector<int> &Frames,
+  bool PlusOnly, bool MinusOnly)
+	{
+	if (PlusOnly && Frame < 0)
+		return false;
+	if (MinusOnly && Frame > 0)
+		return false;
+	for (uint i = 0; i < SIZE(Frames); ++i)
+		{
+		if (Frames[i] == Frame)
+			return true;
+		}
+	return false;
+	}
+
+void GetFevStr(const SeqInfo *SIQ, bool Circular, const vector<int> &Frames,
+  uint MinCodonCount, bool PlusOnly, bool MinusOnly, string &Str)
 	{
 	Str.clear();
 
 	const byte *Q = SIQ->m_Seq;
 	const uint QL = SIQ->m_L;
-	const string Label = string(SIQ->m_Label);
 
 	Translator T;
-	T.SetSeq(Q, QL, true);
-	vector<int> Frames;
-	vector<bool> HasMets;
-	T.GetEndlessFrames(Frames, HasMets);
-	const uint F = SIZE(Frames);
+	T.SetSeq(Q, QL, Circular);
+
+	vector<int> EndlessFrames;
+	vector<bool> EndlessHasMets;
+	T.GetEndlessFrames(EndlessFrames, EndlessHasMets);
+
+	vector<int> KeptFrames;
+	vector<bool> KeptMets;
+	for (uint i = 0; i < SIZE(EndlessFrames); ++i)
+		{
+		int Frame = EndlessFrames[i];
+		if (!FrameSelected(Frame, Frames, PlusOnly, MinusOnly))
+			continue;
+		KeptFrames.push_back(Frame);
+		KeptMets.push_back(EndlessHasMets[i]);
+		}
+
+	const uint F = SIZE(KeptFrames);
 	if (F == 0)
 		{
-		int Frame = 0;
-		uint OrfIndex = UINT_MAX;
-		T.GetLongestOrf(Frame, OrfIndex);
-		if (OrfIndex != UINT_MAX)
+		bool Unrestricted = (!PlusOnly && !MinusOnly && !optset_frame);
+		if (Unrestricted)
 			{
-			uint OrfLength = T.m_OrfAaLengths[OrfIndex];
-			double Pct = (100.0*OrfLength)/double(QL);
-			Ps(Str, "maxorf=%u/%.1f", OrfLength, Pct);
+			int Frame = 0;
+			uint OrfIndex = UINT_MAX;
+			T.GetLongestOrf(Frame, OrfIndex);
+			if (OrfIndex != UINT_MAX)
+				{
+				uint OrfLength = T.m_OrfAaLengths[OrfIndex];
+				double Pct = (100.0*OrfLength)/double(QL);
+				Ps(Str, "maxorf=%u/%.1f", OrfLength, Pct);
+				}
+			return;
+			}
+
+		uint MaxLen = 0;
+		bool Any = false;
+		for (uint k = 0; k < SIZE(Frames); ++k)
+			{
+			int Frame = Frames[k];
+			if (!T.ValidFrame(Frame))
+				continue;
+			if (!FrameSelected(Frame, Frames, PlusOnly, MinusOnly))
+				continue;
+			T.SetFrame(Frame);
+			T.SetOrfs(MinCodonCount);
+			for (uint j = 0; j < SIZE(T.m_OrfAaLengths); ++j)
+				{
+				uint Len = T.m_OrfAaLengths[j];
+				if (Len > MaxLen)
+					{
+					MaxLen = Len;
+					Any = true;
+					}
+				}
+			}
+		if (Any)
+			{
+			double Pct = (100.0*MaxLen)/double(QL);
+			Ps(Str, "maxorf=%u/%.1f", MaxLen, Pct);
 			}
 		return;
 		}
@@ -63,8 +118,8 @@ static void GetFevStr(const SeqInfo *SIQ, string &Str)
 	uint NEmNoMet = 0;
 	for (uint i = 0; i < F; ++i)
 		{
-		int Frame = Frames[i];
-		bool HasMet = HasMets[i];
+		int Frame = KeptFrames[i];
+		bool HasMet = KeptMets[i];
 		if (Frame > 0)
 			{
 			if (HasMet)
@@ -104,57 +159,9 @@ static void GetFevStr(const SeqInfo *SIQ, string &Str)
 		}
 	}
 
+void RunGetOrfs(const string &InputFileName, bool DefaultCircular);
+
 void cmd_getorfs_serratus()
 	{
-	const string &InputFileName = opt(getorfs_serratus);
-	const string &OutputFileName = opt(fevout);
-
-	if (optset_output)
-		Die("Use -fevout");
-
-	FILE *fOut = CreateStdioFile(OutputFileName);
-
-	FASTASeqSource SS;
-	SS.Open(InputFileName);
-	uint64 FileSize = GetStdioFileSize64(SS.m_LR.m_f);
-
-	uint MinCodonCount = 30;
-	if (optset_mincodons)
-		MinCodonCount = opt(mincodons);
-
-	bool Circular = true;
-
-	SeqInfo *SIQ = ObjMgr::GetSeqInfo();
-	asserta(!optset_frame);
-
-	uint SeqCount = 0;
-	ProgressStep(0, 1000, "Processing");
-	for (;;)
-		{
-		bool Ok = SS.GetNext(SIQ);
-		if (!Ok)
-			break;
-
-		++SeqCount;
-		if (SeqCount%1000 == 0)
-			{
-			uint64 FilePos = GetStdioFilePos64(SS.m_LR.m_f);
-			double Fract = double(FilePos)/double(FileSize);
-			uint Mills = uint(Fract*1000);
-			if (Mills == 0)
-				Mills = 1;
-			if (Mills >= 999)
-				Mills = 998;
-			ProgressStep(Mills, 1000, "Processing (%s seqs)", IntToStr(SeqCount));
-			}
-
-		string FevStr;
-		GetFevStr(SIQ, FevStr);
-
-		if (FevStr != "" && fOut != 0)
-			fprintf(fOut, "%s\t%s\n", SIQ->m_Label, FevStr.c_str());
-		}
-	ProgressStep(999, 1000, "Processing (%s seqs)", IntToStr(SeqCount));
-
-	CloseStdioFile(fOut);
+	RunGetOrfs(opt(getorfs_serratus), true);
 	}

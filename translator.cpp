@@ -243,26 +243,28 @@ void Translator::SetOrfs(uint MinCodonCount)
 
 	if (StopCount == 0)
 		{
-	// Add ORF terminated by end of sequence
-		uint StartPos = UINT_MAX;
-		if (MetCount > 0)
-			{
-			m_OrfHasMets.push_back(true);
+	// No stop in this frame. A linear ORF runs from the first methionine
+	// (position 0 when there is none) to the end of the sequence. A circular
+	// frame is one endless ORF of m_CodonCount codons, starting at the first
+	// methionine when there is one. GetAa wraps, so that length includes the
+	// prefix before the methionine.
+		uint StartPos = 0;
+		bool HasMet = (MetCount > 0);
+		if (HasMet)
 			StartPos = PosVec[0];
-			m_OrfAaStarts.push_back(StartPos);
-			}
-		else
-			{
-			StartPos = 0;
-			m_OrfHasMets.push_back(false);
-			m_OrfAaStarts.push_back(0);
-			}
-		m_OrfAaLengths.push_back(m_CodonCount - StartPos);
-		m_OrfHasStops.push_back(false);
+		uint AaLength = m_CodonCount - StartPos;
 		if (m_Circular)
-			m_OrfEndless.push_back(true);
-		else
-			m_OrfEndless.push_back(false);
+			AaLength = m_CodonCount;
+		if (AaLength >= MinCodonCount)
+			{
+			m_OrfAaStarts.push_back(StartPos);
+			m_OrfAaLengths.push_back(AaLength);
+			m_OrfHasStops.push_back(false);
+			m_OrfHasMets.push_back(HasMet);
+			m_OrfEndless.push_back(m_Circular);
+			if (m_Circular)
+				ValidateOrfs();
+			}
 		return;
 		}
 

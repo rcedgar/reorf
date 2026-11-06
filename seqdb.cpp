@@ -18,7 +18,8 @@ void SeqToFastq(FILE *f, const byte *Seq, unsigned L, const char *Qual,
 	fprintf(f, "@%s\n", Label);
 	fprintf(f, "%*.*s\n", L, L, Seq);
 	fprintf(f, "+\n");
-	fprintf(f, "%*.*s\n", L, L, Qual);
+	if (Qual != 0) // to suppress gcc warning
+		fprintf(f, "%*.*s\n", L, L, Qual);
 	}
 
 void SeqToFastaRC(FILE *f, const byte *Seq, unsigned L, const char *Label)

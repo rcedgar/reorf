@@ -14,7 +14,7 @@
 STR_OPT(log)			// Log file for informational messages.
 STR_OPT(userout)		// Hits in tabbed text as specified by -userfields.
 STR_OPT(uc)				// Top hit/centroid assignment in uc format.
-STR_OPT(alnout)			// Hits as human-readable alignments.
+STR_OPT(alnout)			// ORF alignment: nucleotide row and one row per ORF.
 STR_OPT(blast6out)		// Hits in -outfmt 6 BLAST+ output (same as -m8 for older BLAST).
 STR_OPT(fastapairs)		// Hits as pair-wise alignments in FASTA format.
 STR_OPT(qsegout)		// Query sequence hit segments in FASTA format.
@@ -199,13 +199,13 @@ STR_OPT(fqin)		//
 STR_OPT(segs)		//
 STR_OPT(track)		//
 STR_OPT(tracks)		//
-STR_OPT(fevout)		//
+STR_OPT(fevout)		// Serratus ORF classification TSV.
 STR_OPT(sep)		//
 
 UNS_OPT(stepwords,			8,			0,			UINT_MAX)	// -
 UNS_OPT(bump,				50,			0,			100)		// -
 UNS_OPT(rowlen,				80,			8,			UINT_MAX)	// Length of alignment row for -alnout.
-UNS_OPT(mincodons,			20,			1,			UINT_MAX)	// Min number of codons in an ORF.
+UNS_OPT(mincodons,			30,			1,			UINT_MAX)	// Min number of codons in an ORF.
 UNS_OPT(orfstyle,			(1+4),		0,			UINT_MAX)	// Options for ORF detection.
 UNS_OPT(randseed,			1,			0,			UINT_MAX)	// Integer seed for random number generator.
 UNS_OPT(minsize,			0,			0,			UINT_MAX)	// Min cluster size.
@@ -319,7 +319,7 @@ UNS_OPT(long_target,		50000,		1,			UINT_MAX)	// -
 UNS_OPT(minamp,				50,			1,			UINT_MAX)	// Min amplicon length (search_pcr).
 UNS_OPT(maxamp,				1000,		1,			UINT_MAX)	// Max amplicon length (search_pcr).
 UNS_OPT(secs,				0,			0,			UINT_MAX)	// -
-UNS_OPT(fasta_cols,			80,			0,			UINT_MAX)	// Max length of a line when writing FASTA sequence, zero=all on one line.
+UNS_OPT(fasta_cols,			80,			0,			UINT_MAX)	// Max FASTA line length, zero=one line. When set, also the -alnout block width.
 
 UNS_OPT(readcount,			0,			1,			UINT_MAX)	// Nr reads to generate (readsim command).
 
@@ -558,10 +558,12 @@ FLAG_OPT(ignore_label_mismatches)
 FLAG_OPT(readsimv_null)
 FLAG_OPT(tov)
 FLAG_OPT(circular)
+FLAG_OPT(linear)				// Treat sequences as linear; overrides the command default.
 FLAG_OPT(double_endless)
 FLAG_OPT(single_endless)
 FLAG_OPT(plus_only)
 FLAG_OPT(minus_only)
+FLAG_OPT(longest_orf)			// Report only the longest ORF; plus strand wins a length tie.
 FLAG_OPT(nogaps)
 
 VECTOR_OPT(fastq_mergepairs)
