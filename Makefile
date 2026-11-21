@@ -59,6 +59,7 @@ OBJS = \
   o/rotate_motif.o \
   o/translate.o \
   o/codes.o \
+  o/compos.o \
   o/linereader.o \
   o/lockobj.o \
   o/objmgr.o \

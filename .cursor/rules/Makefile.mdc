@@ -1,0 +1,9 @@
+---
+description: Generating Makefile
+alwaysApply: true
+---
+
+Avoid adding new source files unless explicitly prompted.
+If a new .cpp file is added so that a Makefile update is needed, run under WSL:
+
+python /mnt/c/src/vcxproj2makefile/vcxproj2makefile.py

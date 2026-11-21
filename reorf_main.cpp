@@ -3,6 +3,8 @@
 
 void InitCodes();
 
+string g_Arg1;
+
 int main(int argc, char **argv)
 	{
 #ifdef _MSC_VER
@@ -27,7 +29,7 @@ int main(int argc, char **argv)
 	CMD Cmd = GetCmd();
 	switch (Cmd)
 		{
-#define A(x)	case CMD_##x: { void cmd_##x(); cmd_##x(); break; }
+#define A(x)	case CMD_##x: { g_Arg1 = opt(x); void cmd_##x(); cmd_##x(); break; }
 #include "cmds.h"
 	default:
 		asserta(false);

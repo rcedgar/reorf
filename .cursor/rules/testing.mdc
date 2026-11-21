@@ -1,0 +1,6 @@
+---
+description: test under WSL
+alwaysApply: true
+---
+
+Run all testing under WSL. Build the Linux binary using Makefile. Regenerate the figures with `test_scripts/go.bash` from `test_scripts`.

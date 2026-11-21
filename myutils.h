@@ -465,5 +465,6 @@ CMD StrToCmd(const char *Str);
 
 CMD GetCmd();
 extern CMD g_Cmd;
+extern string g_Arg1;
 
 #endif	// myutils_h

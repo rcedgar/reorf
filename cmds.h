@@ -20,5 +20,6 @@ A(dsdn)
 A(freq3)
 A(freq3afa)
 A(evolve_neutral)
+A(compos)
 
 #undef A
